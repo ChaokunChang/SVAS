@@ -42,9 +42,11 @@ RUN yes | pip --no-cache-dir install gdown
 RUN apt-get install -y wget
 
 # latest ray
+RUN yes | pip --no-cache-dir install pandas
 RUN yes | pip --no-cache-dir install pydantic==1.8.1
+RUN yes | pip --no-cache-dir install scikit-learn, "ray[default]", "ray[serve]"
 RUN yes | pip --no-cache-dir install -U https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-2.0.0.dev0-cp38-cp38-manylinux2014_x86_64.whl
 
-WORKDIR /mnt/everest
+WORKDIR /mnt/svas
 
 

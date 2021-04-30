@@ -2,10 +2,17 @@
 print("Hello world")
 # %%
 import numpy as np
-a = [[1,'a', 'A'], [2,'b', 'B'], [3, 'c', 'C']]
+# a = [[1,'a', 'A'], [2,'b', 'B'], [3, 'c', 'C']]
 # print("a,",a[:,1])
+a = [[1,2,3,4,5, 4, 3, 2, 1], [-1,-2,-3,-4,-5, -4, -3, -2, -1]]
 b = np.array(a)
-b[:,2].tolist()
+print(b.shape, b)
+mask1 = b > 3 
+mask2 = b < 5
+mask = np.logical_and(mask1,mask2)
+print(type(mask), mask.shape)
+print(b[mask], len(b))
+
 # %%
 import logging
 
