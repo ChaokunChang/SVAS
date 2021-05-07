@@ -132,3 +132,4 @@ dmypy.json
 .vscode
 checkpoints/yolov5x.pt
 models/tmp
+tmp

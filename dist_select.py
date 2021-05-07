@@ -194,14 +194,16 @@ def get_options():
     parser.add_argument("--diff_thresh", type=float,
                         help="threshold of the difference detector", default=30.0)
     parser.add_argument("--diff_delay", type=int,
-                        help="distance to compute difference of two frames, also sampling frame rate", default=30)
+                        help="distance to compute difference of two frames, can be seen as sampling rate", default=30)
 
     # Proxy Model
     parser.add_argument("--proxy_model_ckpt", type=str, default="data/videos/example/checkpoint_final.pt",
                         help="checkpoiny of pre-trained proxy model")
-    parser.add_argument("--proxy_batch_size", type=int, default=64)
-    parser.add_argument("--proxy_score_upper", type=float, default=0.9)
-    parser.add_argument("--proxy_score_lower", type=float, default=0.1)
+    parser.add_argument("--proxy_batch_size", type=int, default=64, help="batch size to inference proxy model")
+    parser.add_argument("--proxy_score_upper", type=float, default=0.9, 
+                        help="The frames whose proxy score is higher that it will be considered as results directly without oracle label.")
+    parser.add_argument("--proxy_score_lower", type=float, default=0.1, 
+                        help="The frames whose proxy score is lower that it will be considered as not results directly without oracle label.")
 
     # Oracle Model
     # A better design is oracle model is yolov5-2, which means a special model for yolov5 which output car only
@@ -213,8 +215,8 @@ def get_options():
     parser.add_argument("--oracle_score_thresh", type=float, default=0.25)
 
     # Scheduler
-    parser.add_argument("--chunk_size", type=int, default=128)
-    parser.add_argument("--num_gpus", type=int, default=1)
+    parser.add_argument("--chunk_size", type=int, default=128, help="The number of frames inside each task to be executed.")
+    parser.add_argument("--num_gpus", type=int, default=1, help="number of gpu to be used. equal to the number of servers.")
 
     # Worker
     # pass
@@ -277,22 +279,23 @@ if __name__ == "__main__":
     np.save(get_tmp_results_path(opt.video), np.array(results))
 
 # Exp
-# 1xGPU 64-chunk 15296 155
-# 2xGPU 64-chunk 15296 155
-# 3xGPU 64-chunk 15296 142
-# 4xGPU 64-chunk 15296 142
+# GPU num | chunk size | size(results) | acc | time cost
+# 1xGPU | 64-chunk | 
+# 2xGPU | 64-chunk | 
+# 3xGPU | 64-chunk | 
+# 4xGPU | 64-chunk | 
 
-# 1xGPU 128-chunk 15296 
-# 2xGPU 128-chunk 15296 
-# 3xGPU 128-chunk 15296 
-# 4xGPU 128-chunk 15296 
+# 1xGPU | 128-chunk | 
+# 2xGPU | 128-chunk | 
+# 3xGPU | 128-chunk | 
+# 4xGPU | 128-chunk | 
 
-# 1xGPU 256-chunk 15296 114
-# 2xGPU 256-chunk 15296 
-# 3xGPU 256-chunk 15296 
-# 4xGPU 256-chunk 15296 91
+# 1xGPU | 256-chunk | 
+# 2xGPU | 256-chunk | 
+# 3xGPU | 256-chunk | 
+# 4xGPU | 256-chunk | 
 
-# 1xGPU 640-chunk 15296 155
-# 2xGPU 640-chunk 15296 155
-# 3xGPU 640-chunk 15296 142
-# 4xGPU 640-chunk 15296 82
+# 1xGPU | 640-chunk | 
+# 2xGPU | 640-chunk | 
+# 3xGPU | 640-chunk | 
+# 4xGPU | 640-chunk | 
