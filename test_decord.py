@@ -54,7 +54,7 @@ class DecordVideoReader():
 video = sys.argv[1]
 if sys.argv[2] == "None":
     gpu = None
-else: 
+else:
     gpu = int(sys.argv[2])
 
 if len(sys.argv) > 3:

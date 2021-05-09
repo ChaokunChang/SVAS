@@ -1,10 +1,9 @@
 import numpy as np
-from models.yolo_utils import get_object_score, get_object_binary
+from models.yolo_utils import get_object_score, get_object_binary, get_object_count_binary
 
-class CachedGTLabelReader():
+class CachedLabelReader():
     def __init__(self, cached_gt_path, offset=0):
         self.cached_gt = np.load(cached_gt_path, allow_pickle=True)
-        self.cached_gt = np.array(get_object_score(self.cached_gt, 2))
         self.offset = offset
 
     def __len__(self):
@@ -17,10 +16,17 @@ class CachedGTLabelReader():
         batch = [idx + self.offset for idx in batch]
         return self.cached_gt[batch]
 
-class BinaryLabelReader():
-    def __init__(self, cached_gt_path, offset=0, class_id=2, class_thresh=0.2):
+class CachedLabelObjScoreReader(CachedLabelReader):
+    def __init__(self, cached_gt_path, offset=0, object_id=2):
         self.cached_gt = np.load(cached_gt_path, allow_pickle=True)
-        self.cached_gt = np.array(get_object_binary(self.cached_gt, class_id, class_thresh))
+        self.cached_gt = np.array(get_object_score(self.cached_gt, object_id))
+        self.offset = offset
+
+
+class BinaryLabelReader():
+    def __init__(self, cached_gt_path, offset=0, obj_id=2, obj_thresh=0.2, obj_count=1):
+        self.cached_gt = np.load(cached_gt_path, allow_pickle=True)
+        self.cached_gt = np.array(get_object_count_binary(self.cached_gt, obj_id, obj_thresh, obj_count))
         self.offset = offset
 
     def __len__(self):

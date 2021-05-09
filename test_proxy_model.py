@@ -17,55 +17,7 @@ from models.difference import SimpleDiff
 from models.proxy import tinyresnet18
 
 from dataloader.video_loader import DecordVideoReader
-
-def get_options():
-    parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
-    parser.add_argument("--video", type=str, default="data/videos/example.mp4",
-                        help="path to the video of interest")
-    parser.add_argument("--length", type=int, default=108000,
-                        help="specify the length of the video, full length by default")
-    parser.add_argument("--offset", type=int, default=0)
-    parser.add_argument("--img_size", type=int, nargs=2, default=[416, 416])
-
-    # Difference Detector
-    parser.add_argument("--diff_model", type=str,
-                        help="model of difference detector", default="minus", choices=['minus', 'hist'])
-    parser.add_argument("--diff_thresh", type=float,
-                        help="threshold of the difference detector", default=30.0)
-
-    # Proxy Model
-    parser.add_argument("--proxy_model_ckpt", type=str, default="data/videos/example/checkpoint_final.pt",
-                        help="checkpoiny of pre-trained proxy model")
-    parser.add_argument("--proxy_batch", type=int, default=64)
-    parser.add_argument("--proxy_score_thresh", type=float, default=0.5)
-    parser.add_argument("--proxy_score_upper", type=float, default=0.9)
-    parser.add_argument("--proxy_score_lower", type=float, default=0.1)
-
-    # Oracle Model
-    # A better design is oracle model is yolov5-2, which means a special model for yolov5 which output car only
-    parser.add_argument("--oracle_model", type=str, default="yolov5",
-                        choices=['yolov5'], help="model of oracle")
-    parser.add_argument("--oracle_batch", type=int, default=8)
-    parser.add_argument("--oracle_target_label", type=int,
-                        default=2, help="2 means car")
-    parser.add_argument("--oracle_score_thresh", type=float, default=0.2)
-
-    # Scheduler
-    parser.add_argument("--chunk_size", type=int, default=128)
-
-    # Worker
-    # pass
-
-    # Other
-    parser.add_argument("--random_seed", type=int, default=0)
-    parser.add_argument("--gpu", type=int, default=None)
-    parser.add_argument("--save", default=False,
-                        help="save intermediate results", action="store_true")
-
-    opt, _ = parser.parse_known_args()
-    opt.video = os.path.abspath(opt.video)
-
-    return opt
+from utils.parser import *
 
 if __name__ == "__main__":
     opt = get_options()
@@ -80,7 +32,7 @@ if __name__ == "__main__":
         proxy.to(torch.device(opt.gpu))
     proxy.eval()
 
-    batch = opt.proxy_batch
+    batch = opt.proxy_batch_size
     num_batches = len(videoloader) // batch
     batches = [list(range(i * batch, (i+1) * batch)) for i in range(num_batches)]
     imgs = videoloader.get_batch(batches[0])

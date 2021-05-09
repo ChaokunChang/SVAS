@@ -30,39 +30,51 @@ export PYTHONPATH=\$PYTHONPATH:/mnt/svas
 
 Now you aleady launched a svas container, you can run our experiments inside the container.
 
+### Dataset
+
+We prepared three data set for reader: 
+
+1. example.mp4 : A camera recording on the crossroad. There will be some cars cross it.
+2. demo.mp4 : A new report recording where there will be journerlist, cars, etc.
+3. zongyi.mp4 : A video where a lot of person playing together.
+
 ### Investigation Experiments
 
 Here are some scripts to help you check the throughput of data access, models. You can open it and run each command inside it to get the evalutation results. Or you can just use `bash` to run them directly (but it will cost more time, while you don't need to wait for finish because we only cares about throughput here).
 
 ``` Bash
 cat experiments/data_access.sh # evalute data access
-cat model_throughput.sh # evalute models' throughput
+cat experiments/model_throughput.sh # evalute models' throughput
 ```
 
+## Preprocessing
 
-### End to end experiments.
+Before tun our queries, we must first pre-process our data and prepare our proxy model. The code are available in `preprocessing.py`.
 
-First, you need to train a proxy model. However, before we get it, we should firstly split our dataset to get training set, validation set, and test set. This is part of the data processing. 
+Here is an example to pre-process example.mp4 and train a proxy model for task "select the frames where there are at least 2 persons". 
 
 ``` Bash
-# you can use "--vide xxxx" to specify video to process. By default we will use our example vide: data/videos/example.mp4
-# U can also specify how to split the dataset, using options "--num_train" and "--num_valid", for more information, you can refer to utils/parser.py
-python3 utils/data_processing.py
+python3 preprocessing.py --video data/videos/example.mp4 \
+        --task person-n2 --target_object person --target_object_count 2 \
+        --gpu 0
 ```
 
-Then we start to train our proxy with scripts `train_proxy.py`. The trained proxy model will be stored along with the video data automatically.
+There will be 4x stages during the above procedure: (1) Data Labeling, which run oracle model on the full video to get the grount truth. This can be ignored in production. (2) Split Data, which split the data into train set, validation set and test set, the train set will be used to train our proxy model (3) Train our proxy model with train set. (4) Evaluate our proxy model with validation set.
+
+*The first 3 stages can be skipped by option `--skip_labeling`, `--skip_split`, `skip_proxy_train`, respectively. We also support configuration for each stage, please refer to the `utils/parser.py` for details.*
+
+After pre-processing, the ground truth label, the pre-trained proxy model, and ids for test set, will all be stored in folder `data/videos/example_person-n2/` automatically.
+
+### End to end experiments
+
+We support a lot of options to run a select query. For details, you can refer to the file `utils/parser.py`. Here is an simple example.
 
 ``` Bash
-# For options, refer to the train_proxy.py, --video can specify video files, etc.
-python3 train_proxy.py
-```
 
-Now we can run our selection query with the following command:
-
-``` Bash
-
-python3 dist_select.py --chunk_size 640 --diff_delay 10 --diff_thresh 1e-5 --gpu 0 --num_gpus 1
+python3 dist_select.py  --video data/videos/example.mp4 --length 141431 \
+                        --task person-n2 --target_object person --target_object_count 2 \
+                        --chunk_size 640 --diff_delay 10 --diff_thresh 1e-5 --num_gpus 4
 
 ```
 
-For a specific video, you may need to change the parameters according to the characteristic of video.
+Different configuration may have different acceleration, currently we doesn't support auto tuning, which will be future work.

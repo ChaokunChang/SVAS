@@ -19,6 +19,12 @@ name2id = {}
 for i, name in enumerate(coco_names):
     name2id[name] = i
 
+def get_obj_id(name):
+    return name2id[name]
+
+def get_obj_name(id):
+    return coco_names[id]
+
 def coco_colors():
     # Return first 10 plt colors as (r,g,b) https://stackoverflow.com/questions/51350872/python-from-color-name-to-rgb
     def hex2rgb(h):
@@ -171,5 +177,20 @@ def get_object_binary(detections, object_id, object_bbx_thresh=0.2):
                 if object_bbx[5] == object_id and object_bbx[4] >= object_bbx_thresh:
                     binary_class = 1
                     break
+        results.append(binary_class)
+    return results
+
+def get_object_count_binary(detections, object_id, object_bbx_thresh=0.2, obj_count=1):
+    results = []
+    for i, detection in enumerate(detections):
+        c = 0
+        if detection is not None:
+            for j, object_bbx in enumerate(detection):
+                if object_bbx[5] == object_id and object_bbx[4] >= object_bbx_thresh:
+                    c += 1
+        if c >= obj_count:
+            binary_class = 1
+        else:
+            binary_class = 0
         results.append(binary_class)
     return results

@@ -11,32 +11,18 @@ from torch import nn
 import logging
 import numpy as np
 import os
+import json
 
 from dataloader.video_loader import DecordVideoReader
+from dataloader.label_loader import BinaryLabelReader
 from models.detector import YOLOv5
 from models.difference import SimpleDiff
 from models.proxy import tinyresnet18, ProxyTinyResNet
-from utils.data_processing import get_tmp_results_path
+from models.yolo_utils import get_obj_id
+from utils.parser import *
 
 ray.init()
 serve.start()
-
-
-class Model:
-    def __init__(self) -> None:
-        pass
-
-    def infer_batch(self):
-        pass
-
-    def __call__(self):
-        # split batch automatically
-        # and inference batch by batch to fully utilize the hardware
-        self.infer_batch()
-
-    def train(self, model_path=None):
-        pass
-
 
 @ray.remote(num_gpus=1)
 class NoScopeService:
@@ -53,8 +39,12 @@ class NoScopeService:
         self.proxy = ProxyTinyResNet(num_classes=2, device=opt.gpu, model_ckpt=opt.proxy_model_ckpt)
 
         self.oracle_batch_size = opt.oracle_batch_size
-        self.oracle_score_thresh = opt.oracle_score_thresh
-        self.oracle = YOLOv5(model_type="yolov5x", thr=self.oracle_score_thresh,
+        self.oracle_type = opt.oracle_model
+        self.target_object = opt.target_object
+        self.target_object_id = get_obj_id(self.target_object)
+        self.target_object_count = opt.target_object_count
+        self.target_object_thresh = opt.target_object_thresh
+        self.oracle = YOLOv5(model_type=self.oracle_type, thr=self.target_object_thresh,
                              long_side=opt.img_size[0], device=opt.gpu, fp16=False)
 
         # import logging
@@ -106,7 +96,7 @@ class NoScopeService:
         s2_time = time.time()
 
         proxy_scores = self.proxy(frames)
-        print("DEBUG3: ", proxy_scores)
+        print("DEBUG-stage2-score: ", proxy_scores)
         proxy_mask = self.get_mask(
             proxy_scores, lambda x: np.logical_and(x > self.c_low, x < self.c_high))
         frames = frames[proxy_mask]
@@ -132,7 +122,7 @@ class NoScopeService:
         for batch in batches:
             if len(batch) == 0:
                 break
-            b_labels = self.oracle.infer4object(batch)
+            b_labels = self.oracle.infer4object(batch, self.target_object_id, self.target_object_count)
             labels.extend(b_labels)
         oracle_mask = self.get_mask(labels, lambda x: x >= 0.5)
         frames = frames[oracle_mask]
@@ -179,62 +169,33 @@ class NoScopeService:
 
         return targets, self.info
 
-def get_options():
-    parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
-    parser.add_argument("--video", type=str, default="data/videos/example.mp4",
-                        help="path to the video of interest")
-    parser.add_argument("--length", type=int, default=108000,
-                        help="specify the length of the video, full length by default")
-    parser.add_argument("--offset", type=int, default=0)
-    parser.add_argument("--img_size", type=int, nargs=2, default=[416, 416])
+def evaluate(selected_ids, opt):
+    # video_reader = DecordVideoReader(
+    #     opt.video, gpu = opt.gpu, img_size=tuple(opt.img_size), offset=opt.offset)
+    
+    gt_label_path = get_label_path(opt)
+    target_obj_id = get_obj_id(opt.target_object)
+    label_reader = BinaryLabelReader(gt_label_path, opt.offset, target_obj_id, opt.target_object_thresh, opt.target_object_count)
 
-    # Difference Detector
-    parser.add_argument("--diff_model", type=str,
-                        help="model of difference detector", default="minus", choices=['minus', 'hist'])
-    parser.add_argument("--diff_thresh", type=float,
-                        help="threshold of the difference detector", default=30.0)
-    parser.add_argument("--diff_delay", type=int,
-                        help="distance to compute difference of two frames, can be seen as sampling rate", default=30)
+    # train_loader=VideoLoader(video_reader, label_reader, train_idxs,
+    #                          batch_size, device, shuffle=True, enable_cache=True)
 
-    # Proxy Model
-    parser.add_argument("--proxy_model_ckpt", type=str, default="data/videos/example/checkpoint_final.pt",
-                        help="checkpoiny of pre-trained proxy model")
-    parser.add_argument("--proxy_batch_size", type=int, default=64, help="batch size to inference proxy model")
-    parser.add_argument("--proxy_score_upper", type=float, default=0.9, 
-                        help="The frames whose proxy score is higher that it will be considered as results directly without oracle label.")
-    parser.add_argument("--proxy_score_lower", type=float, default=0.1, 
-                        help="The frames whose proxy score is lower that it will be considered as not results directly without oracle label.")
+    gt_labels = label_reader.get_batch(selected_ids)
 
-    # Oracle Model
-    # A better design is oracle model is yolov5-2, which means a special model for yolov5 which output car only
-    parser.add_argument("--oracle_model", type=str, default="yolov5",
-                        choices=['yolov5'], help="model of oracle")
-    parser.add_argument("--oracle_batch_size", type=int, default=16)
-    parser.add_argument("--oracle_target_label", type=int,
-                        default=2, help="2 means car")
-    parser.add_argument("--oracle_score_thresh", type=float, default=0.25)
+    gt_labels = np.array(gt_labels)
+    tp = (gt_labels == 1).sum()
 
-    # Scheduler
-    parser.add_argument("--chunk_size", type=int, default=128, help="The number of frames inside each task to be executed.")
-    parser.add_argument("--num_gpus", type=int, default=1, help="number of gpu to be used. equal to the number of servers.")
-
-    # Worker
-    # pass
-
-    # Other
-    parser.add_argument("--random_seed", type=int, default=0)
-    parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--save", default=False,
-                        help="save intermediate results", action="store_true")
-
-    opt, _ = parser.parse_known_args()
-    opt.video = os.path.abspath(opt.video)
-
-    return opt
-
+    precision = tp / len(gt_labels)
+    print('Summary:')
+    # print(f'positive: {num_pos}')
+    # print(f'negative: {num_neg}')
+    # print(f'Accuracy: {accuracy}')
+    print(f'Precision: {precision}')
+    # print(f'Recall: {recall}')
+    return precision
 
 if __name__ == "__main__":
-    opt = get_options()
+    opt = get_select_options()
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
 
@@ -243,12 +204,20 @@ if __name__ == "__main__":
     for i in range(num_servers):
         servers.append(NoScopeService.remote(sid=i, opt=opt))
 
+    # video_reader = DecordVideoReader(
+    #     opt.video, gpu = opt.gpu, img_size=tuple(opt.img_size), offset=opt.offset)
+    # video_length = get_video_length(video_reader, opt)
+    # del video_reader
+    
     video_length = opt.length
     chunk_size = opt.chunk_size
     num_iters = video_length // chunk_size
     niter = 0
     task_queue = []
+
     results = []
+    infos = []
+
     start_time = time.time()
     while niter < len(servers):
         # logger.debug(f'***** iter-{niter}/{num_iters} with sid={niter} *****')
@@ -262,7 +231,8 @@ if __name__ == "__main__":
 
         selected_ids, info = ray.get(done)[0]
         results += selected_ids
-        logger.debug(f'Iter-{niter}/{num_iters} Got {len(selected_ids)} items from server-{info["sid"]}, {info}')
+        infos.append(info)
+        logger.debug(f'Iter-{niter-num_servers}/{num_iters} Got {len(selected_ids)} items from server-{info["sid"]}, {info}')
         free_server = servers[info['sid']]
         task_queue.append(free_server.run.remote(niter*chunk_size, chunk_size))
         niter += 1
@@ -271,12 +241,20 @@ if __name__ == "__main__":
         done, task_queue = ray.wait(task_queue)
         selected_ids, info = ray.get(done)[0]
         results += selected_ids
+        infos.append(info)
+        logger.debug(f'Iter-{niter-num_servers}/{num_iters} Got {len(selected_ids)} items from server-{info["sid"]}, {info}')
+        niter += 1
 
     end_time = time.time()
+
+    acc = evaluate(results, opt)
+
     logger.info(
-        f'Job Finished, {len(results)} frames were selected from {video_length} with cost of {end_time - start_time}s.')
+        f'Job Finished, {len(results)} out of {video_length} frames were selected with cost of {end_time - start_time}s. The precision is {acc}')
     
-    np.save(get_tmp_results_path(opt.video), np.array(results))
+    np.save(get_tmp_results_path(opt), np.array(results))
+    with open(get_tmp_infos_path(opt), 'w') as fp:
+        json.dump(infos, fp)
 
 # Exp
 # GPU num | chunk size | size(results) | acc | time cost
@@ -295,7 +273,9 @@ if __name__ == "__main__":
 # 3xGPU | 256-chunk | 
 # 4xGPU | 256-chunk | 
 
-# 1xGPU | 640-chunk | 
+
+# zongyi.mp4 (141431 frames), person-n1 
+# 1xGPU | 640-chunk | 45640 | ? | 414
 # 2xGPU | 640-chunk | 
 # 3xGPU | 640-chunk | 
-# 4xGPU | 640-chunk | 
+# 4xGPU | 640-chunk | 136990 | 0.9834 | 174.15

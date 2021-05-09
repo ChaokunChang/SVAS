@@ -203,35 +203,20 @@ class YOLOv5(BaseModel):
         #     ret.append(cur)
         # return ret
 
-    def infer4object(self, images, object_id=2):
-        if len(images.shape) == 3:
-            images = images.unsqueeze(0)
-            batch_size = 1
-        else:
-            batch_size = images.shape[0]
-
+    def infer4object(self, images, object_id=2, count=1):
         results = []
         detections = self.infer(images)
         for i, detection in enumerate(detections):
-            binary_class = 0
             if detection is not None:
+                c = 0
                 for j, object_bbx in enumerate(detection):
-                    if object_bbx[5] == object_id and object_bbx[4] >= self.conf:
-                        binary_class = 1
-                        break
-            results.append(binary_class)
-        return results
-
-    def object_score(self, predictions, object_id):
-        # for car, object_id should be 2.
-        results = []
-        for i, detections in enumerate(predictions):
-            target_object_score = 0.
-            if detections is not None:
-                for j, object_bbx in enumerate(detections):
                     if object_bbx[5] == object_id:
-                        target_object_score = max(object_bbx[4], target_object_score) # We use max when have multiple same object
-            results.append(target_object_score)
+                        c += 1
+            if c >= count:
+                binary_class = 1
+            else:
+                binary_class = 0
+            results.append(binary_class)
         return results
 
 if __name__ == "__main__":

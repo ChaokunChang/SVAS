@@ -134,7 +134,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
     parser.add_argument("--video", type=str, default="videos/archie.mp4", help="path to the video of interest")
     parser.add_argument("--length", type=int, default=None, help="specify the length of the video, full length by default")
-    parser.add_argument("--diff_thres", type=float, help="threshold of the difference detector")
+    parser.add_argument("--diff_thresh", type=float, help="threshold of the difference detector")
     parser.add_argument("--num_train", type=float, default=0.005, help="training set size of the CMDN")
     parser.add_argument("--num_valid", type=float, default=3000, help="validation set size of the CMDN")
     parser.add_argument("--max_score", type=int, default=50, help="the maximum score")

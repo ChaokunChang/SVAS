@@ -6,51 +6,9 @@ import argparse
 import numpy as np
 from os import path as osp
 from dataloader.video_loader import DecordVideoReader, VideoLoader
-from dataloader.label_loader import CachedGTLabelReader
+from dataloader.label_loader import BinaryLabelReader
 from models.detector import YOLOv5
-from utils.parser import get_options
-
-# def get_cached_gt_path(opt):
-#     filename = f"{get_video_prefix(opt.video)}_{opt.udf}.npy"
-#     return os.path.join(cached_gt_dir, filename)
-
-# def get_video_prefix(video_path):
-#     video_name = os.path.basename(video_path)
-#     return os.path.splitext(video_name)[0]
-
-# def get_split_path(opt):
-#     video_prefix = get_video_prefix(opt.video)
-#     return os.path.join(video_dir, video_prefix, "split")
-
-def get_video_title(path_to_video):
-    path_to_video = os.path.abspath(path_to_video)
-    videoname = os.path.basename(path_to_video)
-    suffix = videoname.split('.')[-1]
-    return videoname[:-len(suffix)-1]
-
-def get_video_meta_home(path_to_video):
-    path_to_video = os.path.abspath(path_to_video)
-    datahome = os.path.dirname(path_to_video)
-    videoname = os.path.basename(path_to_video)
-    suffix = videoname.split('.')[-1]
-    metahome = os.path.join(datahome, videoname[:-len(suffix)-1])
-    os.makedirs(metahome, exist_ok=True)
-    return metahome
-
-def get_label_path(path_to_video):
-    path_to_video = os.path.abspath(path_to_video)
-    metahome = get_video_meta_home(path_to_video)
-    return os.path.join(metahome, get_video_title(path_to_video)+".label.npy")
-
-def get_checkpoint_dir(path_to_video):
-    path_to_video = os.path.abspath(path_to_video)
-    metahome = get_video_meta_home(path_to_video)
-    return os.path.join(metahome, "checkpoint") 
-
-def get_tmp_results_path(path_to_video):
-    path_to_video = os.path.abspath(path_to_video)
-    metahome = get_video_meta_home(path_to_video)
-    return os.path.join(metahome, "results") 
+from utils.parser import *
 
 def get_video_length(vr, opt=None):
     if opt is None or opt.length is None:
@@ -84,7 +42,7 @@ def data_labeling(opt):
     # print("DEBUG TYPE: ", f'type={type(results[0])}, value={results}')
     for_save = np.array(results)
     # print("WHY??? ", f'type={type(for_save)}, value={for_save}')
-    output_path = get_label_path(opt.video)
+    output_path = get_label_path(opt)
     np.save(output_path, np.array(results))
     
 
@@ -135,7 +93,7 @@ def split_dataset(opt, vr, lr, save=False):
     # weight = np.array(weight)
 
     if save:
-        metahome = get_video_meta_home(opt.video)
+        metahome = get_video_meta_home(opt)
         split_path = os.path.join(metahome, "partition/")
         os.makedirs(split_path, exist_ok=True)
         np.save(os.path.join(split_path, "train_ids.npy"), train)
@@ -146,13 +104,13 @@ def split_dataset(opt, vr, lr, save=False):
     return train, valid, test
 
 if __name__ == "__main__":
-    opt = get_options()
+    opt = get_preprocessing_options()
 
     vr = DecordVideoReader(opt.video, img_size=tuple(opt.img_size), offset=opt.offset)
     cached_gt_path = get_label_path(opt.video)
     if not os.path.exists(cached_gt_path):
         print("Cached Label doesn't exist, generating now...")
         data_labeling(opt)
-    lr = CachedGTLabelReader(cached_gt_path, opt.offset)
+    lr = BinaryLabelReader(cached_gt_path, opt.offset)
 
     split_dataset(opt, vr, lr, True)
