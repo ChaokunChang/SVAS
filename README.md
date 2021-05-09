@@ -71,7 +71,7 @@ We support a lot of options to run a select query. For details, you can refer to
 
 ``` Bash
 
-python3 dist_select.py  --video data/videos/example.mp4 --length 141431 \
+python3 dist_select.py  --video data/videos/example.mp4 --length 108000 \
                         --task person-n2 --target_object person --target_object_count 2 \
                         --chunk_size 640 --diff_delay 10 --diff_thresh 1e-5 --num_gpus 4
 
