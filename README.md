@@ -51,11 +51,11 @@ cat experiments/model_throughput.sh # evalute models' throughput
 
 Before tun our queries, we must first pre-process our data and prepare our proxy model. The code are available in `preprocessing.py`.
 
-Here is an example to pre-process example.mp4 and train a proxy model for task "select the frames where there are at least 2 persons". 
+Here is an example to pre-process example.mp4 and train a proxy model for task "select the frames where there are at least 1 car". 
 
 ``` Bash
 python3 preprocessing.py --video data/videos/example.mp4 \
-        --task person-n2 --target_object person --target_object_count 2 \
+        --task car-n1 --target_object car --target_object_count 1 \
         --gpu 0
 ```
 
@@ -63,7 +63,7 @@ There will be 4x stages during the above procedure: (1) Data Labeling, which run
 
 *The first 3 stages can be skipped by option `--skip_labeling`, `--skip_split`, `skip_proxy_train`, respectively. We also support configuration for each stage, please refer to the `utils/parser.py` for details.*
 
-After pre-processing, the ground truth label, the pre-trained proxy model, and ids for test set, will all be stored in folder `data/videos/example_person-n2/` automatically.
+After pre-processing, the ground truth label, the pre-trained proxy model, and ids for test set, will all be stored in folder `data/videos/example_car-n2/` automatically.
 
 ### End to end experiments
 
@@ -72,7 +72,7 @@ We support a lot of options to run a select query. For details, you can refer to
 ``` Bash
 
 python3 dist_select.py  --video data/videos/example.mp4 --length 108000 \
-                        --task person-n2 --target_object person --target_object_count 2 \
+                        --task car-n1 --target_object car --target_object_count 1 \
                         --chunk_size 640 --diff_delay 10 --diff_thresh 1e-5 --num_gpus 4
 
 ```

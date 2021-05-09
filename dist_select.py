@@ -96,7 +96,7 @@ class NoScopeService:
         s2_time = time.time()
 
         proxy_scores = self.proxy(frames)
-        print("DEBUG-stage2-score: ", proxy_scores)
+        # print("DEBUG-stage2-score: ", proxy_scores)
         proxy_mask = self.get_mask(
             proxy_scores, lambda x: np.logical_and(x > self.c_low, x < self.c_high))
         frames = frames[proxy_mask]
