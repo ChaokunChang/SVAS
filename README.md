@@ -23,7 +23,7 @@ bash docker/launch_svas.sh
 # go to the working directory
 cd /mnt/svas
 # Setting up environment varibale
-export PYTHONPATH=\$PYTHONPATH:/mnt/svas
+export PYTHONPATH=$PYTHONPATH:/mnt/svas
 ```
 
 ## Run experiments
