@@ -38,6 +38,8 @@ We prepared three data set for reader:
 2. demo.mp4 : A new report recording where there will be journerlist, cars, etc.
 3. zongyi.mp4 : A video where a lot of person playing together.
 
+Notice that: As the `demo.mp4` and `zongyi.mp4` is too large (1G ~ 2G), we didn't put the video inside this repository. You can download these two video in the following Onece Drive [link](https://mycuhk-my.sharepoint.com/:f:/g/personal/1155155266_link_cuhk_edu_hk/EsSffSbZqiBNpQiLZB1TqXIBbLNtX4BThA-MfrLYfJpFtw?e=mTji2L). *You can also use your own videos.*
+
 ### Investigation Experiments
 
 Here are some scripts to help you check the throughput of data access, models. You can open it and run each command inside it to get the evalutation results. Or you can just use `bash` to run them directly (but it will cost more time, while you don't need to wait for finish because we only cares about throughput here).
@@ -54,6 +56,10 @@ Before tun our queries, we must first pre-process our data and prepare our proxy
 Here is an example to pre-process example.mp4 and train a proxy model for task "select the frames where there are at least 1 car". 
 
 ``` Bash
+python3 preprocessing.py --video data/videos/zongyi.mp4 \
+        --task person-n2 --target_object person --target_object_count 2 \
+        --gpu 0
+# Or
 python3 preprocessing.py --video data/videos/example.mp4 \
         --task car-n1 --target_object car --target_object_count 1 \
         --gpu 0
@@ -70,7 +76,10 @@ After pre-processing, the ground truth label, the pre-trained proxy model, and i
 We support a lot of options to run a select query. For details, you can refer to the file `utils/parser.py`. Here is an simple example.
 
 ``` Bash
-
+python3 dist_select.py  --video data/videos/zongyi.mp4 --length 141431 \
+                        --task person-n2 --target_object person --target_object_count 2 \
+                        --chunk_size 640 --diff_delay 10 --diff_thresh 1e-5 --num_gpus 4
+# Or
 python3 dist_select.py  --video data/videos/example.mp4 --length 108000 \
                         --task car-n1 --target_object car --target_object_count 1 \
                         --chunk_size 640 --diff_delay 10 --diff_thresh 1e-5 --num_gpus 4
